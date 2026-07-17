@@ -113,6 +113,20 @@
           <textarea id="html-raw-text" rows="6" placeholder="<div class='media-card'>...</div>"></textarea>
           <button id="parse-html-btn" class="btn-primary" style="width:100%; margin-top:10px;">Извлечь данные</button>
         </div>
+        <!-- Рабочая зона админки -->
+        <div id="admin-workspace" style="display: none;">
+          <div class="admin-tabs">
+            <button class="btn-secondary" onclick="showAdminTab('add')">➕ Добавить</button>
+            <button class="btn-secondary" onclick="showAdminTab('parse')">📑 Парсер (ТГ)</button>
+            <button class="btn-secondary" onclick="showAdminTab('html-parse')">🌐 Парсер (HTML)</button>
+            <!-- ДОБАВЬ ЭТУ СТРОКУ: -->
+            <button class="btn-secondary" onclick="showAdminTab('edit-select')">✏️ Редактировать</button>
+        </div>
+  
+  <!-- Остальной код вкладок (tab-add, tab-parse, tab-html-parse, tab-edit-select) -->
+  ...
+</div>
+        
 
         <hr style="margin: 20px 0; border-color: #333;" />
         <button id="export-db-btn" class="btn-accent" style="width:100%;">💾 Скачать обновленный db.json</button>
