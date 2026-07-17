@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NBF Team — Перевод новелл и манги</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <!-- Шапка со ссылками из твоего конфига -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-accent">NBF</span> Team
+    </div>
+    <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <a href="https://pay.cloudtips.ru/p/79fc85b6" target="_blank" class="btn-accent" style="background: #27ae60;">💖 Поддержать</a>
+      <a href="https://t.me/+vfl3Yg8HqBcxNzZi" target="_blank" class="btn-secondary">💬 Наш чат</a>
+      <a href="https://t.me/NBF_TEAM" target="_blank" class="btn-primary">📢 Канал</a>
+      <button id="admin-btn" class="btn-secondary" style="border: 1px solid #444;">⚙️ Админка</button>
+    </div>
+  </header>
+
+  <!-- Главный экран (Каталог) -->
+  <main id="catalog-view" class="view active">
+    <!-- Фильтры и поиск -->
+    <section class="controls">
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="🔍 Поиск по названию..." />
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" data-type="all">Все</button>
+        <button class="tab-btn" data-type="manga">Манга</button>
+        <button class="tab-btn" data-type="novel">Новеллы</button>
+        <button class="tab-btn" data-type="anime">Аниме</button>
+      </div>
+    </section>
+
+    <!-- Сетка тайтлов -->
+    <section class="grid" id="titles-grid"></section>
+  </main>
+
+  <!-- Модальное окно просмотра тайтла и глав -->
+  <div id="title-modal" class="modal">
+    <div class="modal-content">
+      <button class="close-btn" id="close-modal">&times;</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Модальное окно Админки -->
+  <div id="admin-modal" class="modal">
+    <div class="modal-content admin-content">
+      <button class="close-btn" id="close-admin">&times;</button>
+      <h2>🛠 Админ-панель NBF Team</h2>
+      
+      <!-- Авторизация -->
+      <div id="auth-section">
+        <input type="password" id="admin-pass" placeholder="Введите пароль..." />
+        <button id="login-btn" class="btn-primary" style="width: 100%; margin-top: 10px;">Войти</button>
+      </div>
+
+      <!-- Рабочая зона админки -->
+      <div id="admin-workspace" style="display: none;">
+        <div class="admin-tabs">
+          <button class="btn-secondary" onclick="showAdminTab('add')">➕ Добавить тайтл</button>
+          <button class="btn-secondary" onclick="showAdminTab('parse')">📑 Парсер глав (ТГ)</button>
+          <button class="btn-secondary" onclick="showAdminTab('html-parse')">🌐 Парсер HTML</button>
+        </div>
+
+        <!-- Вкладка добавления тайтла + Парсер API -->
+        <div id="tab-add" class="admin-tab active">
+          <div style="background: #2a2a2a; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed var(--accent);">
+            <p style="font-size: 0.85rem; color: #ccc; margin-bottom: 8px;">⚡ Авто-загрузка по ссылке (выбери платформу):</p>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.9rem;">
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <input type="radio" name="parser-platform" value="lib" checked /> 🟢 MangaLib / RanobeLib
+              </label>
+              <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <input type="radio" name="parser-platform" value="hex" /> 🟣 HexNovels
+              </label>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="lib-url-input" placeholder="Вставь ссылку на тайтл..." style="margin: 0;" />
+              <button id="fetch-lib-btn" class="btn-primary" style="white-space: nowrap;">Загрузить</button>
+            </div>
+          </div>
+
+          <input type="text" id="new-title" placeholder="Название (например: Пять невест)" />
+          <input type="text" id="new-cover" placeholder="URL обложки" />
+          <input type="number" id="new-rating" placeholder="Рейтинг (например: 10.0)" step="0.1" />
+          <select id="new-type">
+            <option value="novel">Новелла</option>
+            <option value="manga">Манга</option>
+            <option value="anime">Аниме</option>
+          </select>
+          <input type="text" id="new-tag" placeholder="Тег (например: Любимые / Перевожу)" />
+          <button id="save-title-btn" class="btn-primary" style="width:100%; margin-top:10px;">Сохранить в базу</button>
+        </div>
+
+        <!-- Вкладка парсера списка глав из ТГ -->
+        <div id="tab-parse" class="admin-tab" style="display:none;">
+          <p>Вставь текст со ссылками из Telegram, система сама разобьет его по томам и главам:</p>
+          <textarea id="tg-raw-text" rows="8" placeholder="• Том 1&#10;– Глава 0 (https://t.me/NBF_TEAM/3089)&#10;– Глава 1 (https://t.me/NBF_TEAM/2979)"></textarea>
+          <select id="select-title-for-chapters"></select>
+          <button id="parse-chapters-btn" class="btn-primary" style="width:100%; margin-top:10px;">Спарсить и привязать к тайтлу</button>
+        </div>
+
+        <!-- Вкладка парсера HTML со сторонних сайтов -->
+        <div id="tab-html-parse" class="admin-tab" style="display:none;">
+          <p>Вставь скопированный HTML-код карточки или страницы с каталога:</p>
+          <textarea id="html-raw-text" rows="6" placeholder="<div class='media-card'>...</div>"></textarea>
+          <button id="parse-html-btn" class="btn-primary" style="width:100%; margin-top:10px;">Извлечь данные</button>
+        </div>
+
+        <hr style="margin: 20px 0; border-color: #333;" />
+        <button id="export-db-btn" class="btn-accent" style="width:100%;">💾 Скачать обновленный db.json</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Подключение скрипта (убедись, что путь правильный: /src/main.js или /main.js) -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
