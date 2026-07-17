@@ -1,36 +1,26 @@
-// Локальная база данных
-let db = JSON.parse(localStorage.getItem('nbf_db')) || [
-  {
-    id: "5-brides",
-    title: "Пять невест (весна, лето, осень, зима)",
-    cover: "https://i.pinimg.com/736x/c5/4a/5b/c54a5b9b8b9a136e4f3a9e7011d61e3d.jpg",
-    rating: "10.0",
-    type: "novel",
-    tag: "Любимые",
-    volumes: [
-      {
-        name: "Том 1",
-        chapters: [
-          { title: "Глава 0 (начальные иллюстрации)", url: "https://t.me/NBF_TEAM/3089" },
-          { title: "Глава 1", url: "https://t.me/NBF_TEAM/2979" },
-          { title: "Глава 2", url: "https://t.me/NBF_TEAM/2983" }
-        ]
-      }
-    ]
-  },
-  {
-    id: "angel-next-door",
-    title: "Ангел по соседству (WN)",
-    cover: "https://i.pinimg.com/736x/8a/a6/5c/8aa65c8b9b8b9a136e4f3a9e7011d61e3d.jpg",
-    rating: "9.6",
-    type: "novel",
-    tag: "Перевожу",
-    volumes: []
-  }
-];
-
+// Локальная база данных (инициализируется пустой и загружается с сервера)
+let db = [];
 let currentFilter = 'all';
 let searchQuery = '';
+
+// --- ЗАГРУЗКА БАЗЫ ДАННЫХ С СЕРВЕРА NETLIFY ---
+async function loadDatabase() {
+  try {
+    // Параметр ?t= отключает кеширование, заставляя браузер всегда качать самую свежую версию
+    const response = await fetch(`/db.json?t=${Date.now()}`);
+    if (response.ok) {
+      db = await response.json();
+      localStorage.setItem('nbf_db', JSON.stringify(db)); // Обновляем резервную копию в памяти
+    } else {
+      throw new Error('Файл не найден на сервере');
+    }
+  } catch (error) {
+    console.warn('⚠️ Не удалось загрузить db.json с сервера, берем из памяти браузера:', error);
+    db = JSON.parse(localStorage.getItem('nbf_db')) || [];
+  }
+  renderGrid();
+  updateSelectTitles();
+}
 
 // --- ОТРИСОВКА КАТАЛОГА ТАЙТЛОВ ---
 function renderGrid() {
@@ -179,7 +169,7 @@ document.getElementById('save-title-btn').onclick = () => {
   
   db.push(newTitle);
   saveDB();
-  alert('Тайтл успешно внесен в локальную базу данных!');
+  alert('Тайтл внесен в базу! (Для публикации в интернет скачайте db.json и загрузите на GitHub)');
   renderGrid();
   updateSelectTitles();
 };
@@ -325,5 +315,5 @@ document.getElementById('export-db-btn').onclick = () => {
   downloadAnchor.remove();
 };
 
-// Первичный запуск
-renderGrid();
+// Первичный запуск: качаем базу с сервера
+loadDatabase();
