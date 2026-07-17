@@ -141,14 +141,22 @@ window.showAdminTab = (tabName) => {
 };
 
 function updateSelectTitles() {
-  const select = document.getElementById('select-title-for-chapters');
-  if (!select) return;
-  select.innerHTML = '';
-  db.forEach(item => {
-    const opt = document.createElement('option');
-    opt.value = item.id;
-    opt.innerText = item.title;
-    select.appendChild(opt);
+  const selects = ['select-title-for-chapters', 'select-title-for-edit'];
+  selects.forEach(selId => {
+    const select = document.getElementById(selId);
+    if (!select) return;
+    
+    // Сохраняем текущее значение, чтобы список не дергался при обновлении
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">-- Выберите тайтл --</option>';
+    
+    db.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.innerText = item.title;
+      select.appendChild(opt);
+    });
+    select.value = currentValue;
   });
 }
 
@@ -313,6 +321,32 @@ document.getElementById('export-db-btn').onclick = () => {
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
+};
+// Загрузка данных в поля редактирования
+window.loadTitleToEdit = (id) => {
+  const item = db.find(t => t.id === id);
+  if (!item) return;
+  
+  document.getElementById('edit-form-fields').style.display = 'block';
+  document.getElementById('edit-title').value = item.title;
+  document.getElementById('edit-cover').value = item.cover;
+  document.getElementById('edit-rating').value = item.rating;
+  window.currentEditId = id; // Сохраняем ID того, что правим
+};
+
+// Сохранение отредактированного тайтла
+window.saveEditedTitle = () => {
+  const id = window.currentEditId;
+  const item = db.find(t => t.id === id);
+  if (!item) return;
+
+  item.title = document.getElementById('edit-title').value;
+  item.cover = document.getElementById('edit-cover').value;
+  item.rating = document.getElementById('edit-rating').value;
+
+  saveDB();
+  renderGrid();
+  alert('Тайтл успешно обновлен!');
 };
 
 // Первичный запуск: качаем базу с сервера
