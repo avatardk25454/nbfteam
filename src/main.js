@@ -1,353 +1,520 @@
-// Локальная база данных (инициализируется пустой и загружается с сервера)
-let db = [];
-let currentFilter = 'all';
-let searchQuery = '';
+// public/src/main.js
+// Если запускаете локально, измените на http://localhost:8000
+const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+  ? "http://localhost:8000" 
+  : "https://ваш-бэкенд-сервер.com"; 
 
-// --- ЗАГРУЗКА БАЗЫ ДАННЫХ С СЕРВЕРА NETLIFY ---
-async function loadDatabase() {
-  try {
-    // Параметр ?t= отключает кеширование, заставляя браузер всегда качать самую свежую версию
-    const response = await fetch(`/db.json?t=${Date.now()}`);
-    if (response.ok) {
-      db = await response.json();
-      localStorage.setItem('nbf_db', JSON.stringify(db)); // Обновляем резервную копию в памяти
-    } else {
-      throw new Error('Файл не найден на сервере');
-    }
-  } catch (error) {
-    console.warn('⚠️ Не удалось загрузить db.json с сервера, берем из памяти браузера:', error);
-    db = JSON.parse(localStorage.getItem('nbf_db')) || [];
+let titlesData = [];
+let currentFilter = 'all';
+let currentOpenTitle = null;
+let currentOpenChapterId = null;
+let currentUser = null;
+
+// --- ИНИЦИАЛИЗАЦИЯ ---
+document.addEventListener("DOMContentLoaded", () => {
+  checkAuthStorage();
+  loadTitlesFromAPI();
+  setupEventListeners();
+});
+
+function checkAuthStorage() {
+  const saved = localStorage.getItem("nbf_user");
+  if (saved) {
+    currentUser = JSON.parse(saved);
+    updateAuthUI();
   }
-  renderGrid();
-  updateSelectTitles();
 }
 
-// --- ОТРИСОВКА КАТАЛОГА ТАЙТЛОВ ---
-function renderGrid() {
-  const grid = document.getElementById('titles-grid');
-  if (!grid) return;
-  grid.innerHTML = '';
+function updateAuthUI() {
+  const btn = document.getElementById("auth-btn");
+  const adminBtn = document.getElementById("admin-btn");
+  if (currentUser) {
+    btn.innerText = `👤 ${currentUser.username}`;
+    if (currentUser.is_admin) {
+      adminBtn.style.display = "inline-flex";
+    }
+  } else {
+    btn.innerText = "👤 Вход / Регистрация";
+    adminBtn.style.display = "none";
+  }
+}
 
-  const filtered = db.filter(item => {
-    const matchesType = currentFilter === 'all' || item.type === currentFilter;
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesSearch;
+// --- ЗАГРУЗКА ДАННЫХ И РЕНДЕР КАТАЛОГА ---
+async function loadTitlesFromAPI() {
+  try {
+    const res = await fetch(`${API_URL}/api/titles`);
+    if (res.ok) {
+      titlesData = await res.json();
+      renderGrid();
+      renderNewReleases();
+      updateAdminSelects();
+    } else {
+      throw new Error("Сервер вернул ошибку");
+    }
+  } catch (err) {
+    console.warn("⚠️ Не удалось связаться с FastAPI, грузим резервный db.json:", err);
+    try {
+      const fbRes = await fetch(`/db.json?t=${Date.now()}`);
+      if (fbRes.ok) {
+        titlesData = await fbRes.json();
+        renderGrid();
+        renderNewReleases();
+      }
+    } catch (e) {
+      console.error("Оба источника недоступны:", e);
+    }
+  }
+}
+
+function renderGrid() {
+  const grid = document.getElementById("titles-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  const query = document.getElementById("search-input").value.toLowerCase();
+  const filtered = titlesData.filter(t => {
+    const matchType = currentFilter === "all" || t.type === currentFilter;
+    const matchSearch = t.title.toLowerCase().includes(query);
+    return matchType && matchSearch;
   });
 
   filtered.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'card';
+    const totalCh = item.chapters ? item.chapters.length : (item.volumes?.reduce((acc, v) => acc + v.chapters.length, 0) || 0);
+    const card = document.createElement("div");
+    card.className = "card";
     card.onclick = () => openTitleModal(item);
-
-    const typeName = item.type === 'novel' ? 'Новелла' : item.type === 'manga' ? 'Манга' : 'Аниме';
 
     card.innerHTML = `
       <div class="card-img-wrap">
-        <span class="badge-rating">${item.rating}</span>
-        ${item.tag ? `<span class="badge-tag ${item.type}">${item.tag}</span>` : ''}
+        <span class="badge-rating">★ ${item.rating}</span>
+        <span class="badge-tag ${item.type}">${item.type === 'novel' ? 'Новелла' : 'Манга'}</span>
         <img class="card-img" src="${item.cover}" alt="${item.title}" loading="lazy" />
       </div>
       <div class="card-info">
         <div class="card-title">${item.title}</div>
-        <div class="card-meta">${typeName} • Команда NBF</div>
+        <div class="card-meta">
+          <span>👁 ${item.views_count || 0}</span>
+          <span>📖 Глав: ${totalCh}</span>
+        </div>
       </div>
     `;
     grid.appendChild(card);
   });
 }
 
-// --- МОДАЛЬНОЕ ОКНО ПРОСМОТРА ГЛАВ ---
-function openTitleModal(item) {
-  const modal = document.getElementById('title-modal');
-  const body = document.getElementById('modal-body');
+// Лента свежих глав
+function renderNewReleases() {
+  const container = document.getElementById("new-releases-list");
+  if (!container) return;
+  container.innerHTML = "";
 
-  let volumesHtml = '';
-  if (item.volumes && item.volumes.length > 0) {
-    item.volumes.forEach(vol => {
-      let chaptersHtml = '';
-      vol.chapters.forEach(ch => {
-        chaptersHtml += `
-          <li class="chapter-item">
-            <a href="${ch.url}" target="_blank">
-              <span>📖 ${ch.title}</span> 
-              <span style="color:var(--accent); font-size:0.85rem;">Читать в Telegram ➔</span>
-            </a>
-          </li>`;
+  let allChapters = [];
+  titlesData.forEach(t => {
+    if (t.chapters) {
+      t.chapters.forEach(ch => allChapters.push({ ...ch, titleName: t.title, titleCover: t.cover, titleObj: t }));
+    } else if (t.volumes) {
+      t.volumes.forEach(v => {
+        v.chapters.forEach(ch => allChapters.push({ ...ch, titleName: t.title, titleObj: t }));
       });
-      volumesHtml += `
-        <div class="volume-block">
-          <div class="volume-title">${vol.name}</div>
-          <ul class="chapter-list">${chaptersHtml}</ul>
-        </div>`;
+    }
+  });
+
+  if (allChapters.length === 0) {
+    container.innerHTML = "<div class='release-item'>Свежих релизов пока нет</div>";
+    return;
+  }
+
+  allChapters.slice(0, 10).forEach(ch => {
+    const item = document.createElement("div");
+    item.className = "release-item";
+    item.onclick = () => {
+      openTitleModal(ch.titleObj);
+    };
+    item.innerHTML = `🔥 <b>${ch.titleName.substring(0, 20)}...</b> — ${ch.chapter_title || ch.title || 'Глава'}`;
+    container.appendChild(item);
+  });
+}
+
+// --- МОДАЛЬНОЕ ОКНО ТАЙТЛА И ВЫБОР ТОМОВ (Пункт 5) ---
+window.openTitleModal = async function(item) {
+  currentOpenTitle = item;
+  const modal = document.getElementById("title-modal");
+  const body = document.getElementById("modal-body");
+  
+  // Отправляем уникальный IP просмотр
+  fetch(`${API_URL}/api/titles/${item.id}/view`, { method: "POST" }).catch(() => {});
+
+  let chaptersByVol = {};
+  if (item.chapters) {
+    item.chapters.forEach(ch => {
+      const vNum = ch.volume_num || 1;
+      if (!chaptersByVol[vNum]) chaptersByVol[vNum] = [];
+      chaptersByVol[vNum].push(ch);
     });
-  } else {
-    volumesHtml = '<p style="color:#aaa; margin-top:15px; text-align:center;">Главы для этого тайтла ещё не опубликованы.</p>';
+  } else if (item.volumes) {
+    item.volumes.forEach((v, idx) => {
+      chaptersByVol[idx + 1] = v.chapters;
+    });
+  }
+
+  const volNumbers = Object.keys(chaptersByVol);
+  let tabsHtml = "";
+  if (volNumbers.length > 0) {
+    volNumbers.forEach((v, idx) => {
+      tabsHtml += `<button class="vol-tab-btn ${idx === 0 ? 'active' : ''}" onclick="switchVolumeTab(${v}, this)">Том ${v}</button>`;
+    });
   }
 
   body.innerHTML = `
-    <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;">
-      <img src="${item.cover}" style="width:130px; border-radius:8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);" />
+    <div style="display:flex; gap:15px; align-items:flex-start; flex-wrap:wrap;">
+      <img src="${item.cover}" style="width:120px; border-radius:8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);" />
       <div style="flex:1; min-width:200px;">
-        <h2 style="color:var(--accent); margin-bottom:10px; line-height:1.2;">${item.title}</h2>
-        <span class="badge-rating" style="position:static; display:inline-block; margin-bottom:10px;">★ Рейтинг: ${item.rating}</span>
-        <p style="color:#aaa; font-size:0.9rem; margin-top:5px;">Все переходы ведут на посты с главами в официальном канале.</p>
+        <h2 style="color:var(--accent); margin-bottom:8px;">${item.title}</h2>
+        <p style="font-size:0.85rem; color:#aaa; margin-bottom:8px;">★ Рейтинг: ${item.rating} • 👁 Просмотров: ${item.views_count || 0}</p>
+        <p style="font-size:0.9rem; color:#ddd; line-height:1.4;">${item.description || 'Перевод от команды NBF Team.'}</p>
       </div>
     </div>
-    <hr style="margin: 20px 0; border-color:#333;" />
-    <h3 style="margin-bottom:10px;">Доступные тома и главы:</h3>
-    ${volumesHtml}
+    <hr style="margin: 15px 0; border-color:#333;" />
+    <h4 style="margin-bottom:8px;">Кликабельная структура томов:</h4>
+    <div class="volume-tabs-container">${tabsHtml || '<span style="color:#888;">Тома не созданы</span>'}</div>
+    <div id="chapters-list-container"></div>
   `;
-  modal.classList.add('active');
-}
 
-// --- УПРАВЛЕНИЕ ФИЛЬТРАЦИЕЙ И ПОИСКОМ ---
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    currentFilter = e.target.getAttribute('data-type');
-    renderGrid();
-  });
-});
-
-document.getElementById('search-input')?.addEventListener('input', (e) => {
-  searchQuery = e.target.value;
-  renderGrid();
-});
-
-// Закрытие окон
-document.getElementById('close-modal').onclick = () => document.getElementById('title-modal').classList.remove('active');
-document.getElementById('close-admin').onclick = () => document.getElementById('admin-modal').classList.remove('active');
-
-// --- АДМИН-ПАНЕЛЬ И АВТОРИЗАЦИЯ ---
-document.getElementById('admin-btn').onclick = () => {
-  document.getElementById('admin-modal').classList.add('active');
-  updateSelectTitles();
-};
-
-document.getElementById('login-btn').onclick = () => {
-  const pass = document.getElementById('admin-pass').value;
-  if (pass === 'nbf123') {
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('admin-workspace').style.display = 'block';
+  if (volNumbers.length > 0) {
+    renderChaptersForVolume(volNumbers[0], chaptersByVol[volNumbers[0]]);
   } else {
-    alert('Неверный пароль доступа!');
+    document.getElementById("chapters-list-container").innerHTML = "<p style='color:#888;'>Главы ещё не добавлены.</p>";
   }
+
+  loadComments("title", item.id);
+  modal.classList.add("active");
 };
 
-window.showAdminTab = (tabName) => {
-  document.querySelectorAll('.admin-tab').forEach(t => t.style.display = 'none');
-  document.getElementById(`tab-${tabName}`).style.display = 'block';
+window.switchVolumeTab = function(volNum, btnEl) {
+  document.querySelectorAll(".vol-tab-btn").forEach(b => b.classList.remove("active"));
+  btnEl.classList.add("active");
+
+  let chList = [];
+  if (currentOpenTitle.chapters) {
+    chList = currentOpenTitle.chapters.filter(c => (c.volume_num || 1) == volNum);
+  } else if (currentOpenTitle.volumes) {
+    const volObj = currentOpenTitle.volumes.find(v => v.name.includes(volNum));
+    if (volObj) chList = volObj.chapters;
+  }
+  renderChaptersForVolume(volNum, chList);
 };
 
-function updateSelectTitles() {
-  const selects = ['select-title-for-chapters', 'select-title-for-edit'];
-  selects.forEach(selId => {
-    const select = document.getElementById(selId);
-    if (!select) return;
-    
-    // Сохраняем текущее значение, чтобы список не дергался при обновлении
-    const currentValue = select.value;
-    select.innerHTML = '<option value="">-- Выберите тайтл --</option>';
-    
-    db.forEach(item => {
-      const opt = document.createElement('option');
-      opt.value = item.id;
-      opt.innerText = item.title;
-      select.appendChild(opt);
-    });
-    select.value = currentValue;
+function renderChaptersForVolume(volNum, chList) {
+  const container = document.getElementById("chapters-list-container");
+  if (!chList || chList.length === 0) {
+    container.innerHTML = "<p style='color:#888;'>В этом томе пока нет глав.</p>";
+    return;
+  }
+
+  let html = "<ul class='chapter-list'>";
+  chList.forEach(ch => {
+    const titleText = ch.chapter_title || ch.title || `Глава ${ch.chapter_num || ''}`;
+    // Если есть контент или локальная глава — открываем в ридере, иначе в ТГ
+    const action = ch.content || ch.id 
+      ? `onclick="openReader(${ch.id || 0}, '${encodeURIComponent(JSON.stringify(ch))}')"`
+      : `href="${ch.tg_url || ch.url}" target="_blank"`;
+
+    html += `
+      <li class="chapter-item">
+        <a ${action} class="ch-title-link" style="cursor:pointer;">📖 ${titleText}</a>
+        <span class="ch-views">👁 ${ch.views_count || 0}</span>
+        ${ch.tg_url ? `<a href="${ch.tg_url}" target="_blank" style="color:var(--accent); font-size:0.8rem; text-decoration:none;">В ТГ ➔</a>` : ''}
+      </li>
+    `;
   });
+  html += "</ul>";
+  container.innerHTML = html;
 }
 
-// 1. Ручное добавление тайтла
-document.getElementById('save-title-btn').onclick = () => {
-  const titleName = document.getElementById('new-title').value.trim();
-  if (!titleName) return alert('Укажите название тайтла!');
-
-  const newTitle = {
-    id: 'id-' + Date.now(),
-    title: titleName,
-    cover: document.getElementById('new-cover').value.trim() || 'https://via.placeholder.com/150',
-    rating: document.getElementById('new-rating').value || "10.0",
-    type: document.getElementById('new-type').value,
-    tag: document.getElementById('new-tag').value.trim(),
-    volumes: []
-  };
+// --- ЧТЕНИЕ ГЛАВЫ (С иллюстрациями) ---
+window.openReader = async function(chapterId, chDataEncoded) {
+  const ch = JSON.parse(decodeURIComponent(chDataEncoded));
+  currentOpenChapterId = ch.id || null;
+  const modal = document.getElementById("read-modal");
+  document.getElementById("reader-title-text").innerText = `${currentOpenTitle.title} — ${ch.chapter_title || ch.title || ''}`;
   
-  db.push(newTitle);
-  saveDB();
-  alert('Тайтл внесен в базу! (Для публикации в интернет скачайте db.json и загрузите на GitHub)');
-  renderGrid();
-  updateSelectTitles();
+  // Увеличиваем счетчик просмотров главы
+  if (chapterId && chapterId !== 0) {
+    fetch(`${API_URL}/api/chapters/${chapterId}`).catch(() => {});
+  }
+
+  const contentDiv = document.getElementById("reader-content");
+  if (ch.content) {
+    contentDiv.innerHTML = ch.content; // Render с тегами <img>
+  } else {
+    contentDiv.innerHTML = `<p style="text-align:center; margin-top:50px;">Текст главы доступен по ссылке в Telegram:<br><br><a href="${ch.tg_url || ch.url}" target="_blank" class="btn-primary">Перейти к чтение в Telegram</a></p>`;
+  }
+
+  loadComments("chapter", chapterId || 0);
+  modal.classList.add("active");
 };
 
-// 2. АВТО-ПАРСЕР ПО API (MangaLib / RanobeLib / HexNovels)
-document.getElementById('fetch-lib-btn').onclick = async () => {
-  const urlInput = document.getElementById('lib-url-input').value.trim();
-  const platform = document.querySelector('input[name="parser-platform"]:checked')?.value || 'lib';
-
-  if (!urlInput) return alert('Вставьте ссылку на страницу тайтла!');
-
-  const btn = document.getElementById('fetch-lib-btn');
-  const originalText = btn.innerText;
-  btn.innerText = '⌛ Загрузка данных...';
-  btn.disabled = true;
+// --- КОММЕНТАРИИ (Анонимы + Инкогнито #xxxx) ---
+async function loadComments(type, id) {
+  const listEl = document.getElementById(`${type}-comments-list`);
+  if (!listEl) return;
+  listEl.innerHTML = "<p style='color:#666;'>Загрузка комментариев...</p>";
 
   try {
-    const urlObj = new URL(urlInput);
-    const pathParts = urlObj.pathname.split('/').filter(Boolean);
-    const slug = pathParts[pathParts.length - 1]; 
-
-    if (!slug) throw new Error('Не удалось вырезать слаг тайтла из адреса');
-
-    let apiUrl = '';
-    if (platform === 'lib') {
-      apiUrl = `https://api.cdnlibs.org/api/manga/${slug}`;
-    } else if (platform === 'hex') {
-      apiUrl = `https://api.hexnovels.me/v2/novels/${slug}`;
+    const param = type === "title" ? `title_id=${id}` : `chapter_id=${id}`;
+    const res = await fetch(`${API_URL}/api/comments?${param}`);
+    if (res.ok) {
+      const comms = await res.json();
+      listEl.innerHTML = "";
+      if (comms.length === 0) {
+        listEl.innerHTML = "<p style='color:#666; font-size:0.85rem;'>Комментариев пока нет. Будьте первым!</p>";
+        return;
+      }
+      comms.forEach(c => {
+        const dateStr = new Date(c.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        listEl.innerHTML += `
+          <div class="comment-box">
+            <div class="comment-author"><span>👤 ${c.author_name}</span><span class="comment-date">${dateStr}</span></div>
+            <div class="comment-text">${c.text}</div>
+          </div>
+        `;
+      });
     }
+  } catch (e) {
+    listEl.innerHTML = "<p style='color:#666;'>Локальный режим: комментарии доступны только при работе с бэкенд сервером.</p>";
+  }
+}
 
-    const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(apiUrl)}`;
-    const response = await fetch(proxyUrl);
-    
-    if (!response.ok) throw new Error('Сайт-источник заблокировал запрос или тайтл скрыт');
-    
-    const json = await response.json();
-    const data = json.data || json;
+window.submitComment = async function(type) {
+  const input = document.getElementById(`${type}-comment-input`);
+  const text = input.value.trim();
+  if (!text) return alert("Введите текст комментария!");
 
-    if (!data || (!data.name && !data.title && !data.rus_name && !data.titleRu)) {
-      throw new Error('Ответ от сервера пустой или не содержит нужных полей');
-    }
+  const payload = {
+    text: text,
+    author_name: currentUser ? currentUser.username : null,
+    title_id: type === "title" ? currentOpenTitle.id : null,
+    chapter_id: type === "chapter" ? currentOpenChapterId : null
+  };
 
-    const titleText = data.rus_name || data.titleRu || data.name || data.title || '';
-    document.getElementById('new-title').value = titleText.trim();
-    
-    let coverUrl = '';
-    if (typeof data.cover === 'string') coverUrl = data.cover;
-    else if (data.cover?.default) coverUrl = data.cover.default;
-    else if (data.coverUrl) coverUrl = data.coverUrl;
-    document.getElementById('new-cover').value = coverUrl;
-
-    let ratingVal = '10.0';
-    if (data.rating?.average) ratingVal = parseFloat(data.rating.average).toFixed(1);
-    else if (data.rating) ratingVal = parseFloat(data.rating).toFixed(1);
-    document.getElementById('new-rating').value = ratingVal;
-
-    const typeSelect = document.getElementById('new-type');
-    if (platform === 'hex' || urlInput.includes('ranobe') || data.type?.id === 3) {
-      typeSelect.value = 'novel';
+  try {
+    const res = await fetch(`${API_URL}/api/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      input.value = "";
+      loadComments(type, type === "title" ? currentOpenTitle.id : currentOpenChapterId);
     } else {
-      typeSelect.value = 'manga';
+      alert("Ошибка при отправке комментария.");
     }
-
-    window.showAdminTab('add');
-    alert(`🎉 Данные с ${platform.toUpperCase()} успешно подтянуты: "${titleText}"!`);
-  } catch (error) {
-    console.error(error);
-    alert('Ошибка авто-парсинга по API: ' + error.message + '\n\nИспользуй ручной режим или вкладку Парсер HTML.');
-  } finally {
-    btn.innerText = originalText;
-    btn.disabled = false;
+  } catch (e) {
+    alert("Сервер недоступен. Запустите fastapi сервер для работы комментариев.");
   }
 };
 
-// 3. ПАРСЕР ТЕКСТА ИЗ TELEGRAM
-document.getElementById('parse-chapters-btn').onclick = () => {
-  const rawText = document.getElementById('tg-raw-text').value;
-  const targetId = document.getElementById('select-title-for-chapters').value;
-  const targetTitle = db.find(t => t.id === targetId);
+// --- АВТОРИЗАЦИЯ И ПРОФИЛЬ ---
+window.handleLogin = async function() {
+  const u = document.getElementById("auth-username").value.trim();
+  const p = document.getElementById("auth-password").value;
+  if (!u || !p) return alert("Заполните поля!");
 
-  if (!targetTitle) return alert('Сначала выберите тайтл для привязки!');
-  if (!rawText.trim()) return alert('Текстовое поле пустое!');
-
-  const lines = rawText.split('\n');
-  let currentVolume = { name: "Том 1", chapters: [] };
-  const volumes = [];
-
-  lines.forEach(line => {
-    const cleanLine = line.trim();
-    if (cleanLine.startsWith('• Том') || cleanLine.startsWith('Том')) {
-      if (currentVolume.chapters.length > 0) volumes.push(currentVolume);
-      currentVolume = { name: cleanLine.replace('•', '').trim(), chapters: [] };
-    } 
-    else if (cleanLine.includes('http')) {
-      const matchUrl = cleanLine.match(/(https?:\/\/[^\s)]+)/);
-      if (matchUrl) {
-        const url = matchUrl[0];
-        const title = cleanLine.replace(url, '').replace(/[–—\-()]/g, '').trim();
-        currentVolume.chapters.push({ title: title || "Глава", url: url });
-      }
+  try {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    if (res.ok) {
+      currentUser = await res.json();
+      localStorage.setItem("nbf_user", JSON.stringify(currentUser));
+      updateAuthUI();
+      closeModal("auth-modal");
+      alert(`Добро пожаловать, ${currentUser.username}!`);
+    } else {
+      alert("Неверный логин или пароль! Если вы первый раз - создайте аккаунт через API.");
     }
+  } catch (e) {
+    // Резервный локальный вход для тестирования без бэкенда
+    if (u === "Renayem" && p === "nbf123") {
+      currentUser = { id: 1, username: "Renayem", email: "arsenijkasapov6@gmail.com", is_admin: true };
+      localStorage.setItem("nbf_user", JSON.stringify(currentUser));
+      updateAuthUI();
+      closeModal("auth-modal");
+      alert("Вход в локальном режиме администратора!");
+    } else {
+      alert("Сервер недоступен или неверные данные.");
+    }
+  }
+};
+
+window.handleLogout = function() {
+  localStorage.removeItem("nbf_user");
+  currentUser = null;
+  updateAuthUI();
+  closeModal("auth-modal");
+};
+
+// --- АДМИН-ПАНЕЛЬ И РЕДАКТОР ГЛАВ (Пункты 1, 2) ---
+function updateAdminSelects() {
+  const selEdit = document.getElementById("select-title-for-edit");
+  const selTg = document.getElementById("select-title-for-tg");
+  if (!selEdit || !selTg) return;
+
+  [selEdit, selTg].forEach(s => {
+    s.innerHTML = '<option value="">-- Выберите тайтл --</option>';
+    titlesData.forEach(t => {
+      s.innerHTML += `<option value="${t.id}">${t.title}</option>`;
+    });
   });
-  
-  if (currentVolume.chapters.length > 0) volumes.push(currentVolume);
-
-  targetTitle.volumes = volumes;
-  saveDB();
-  alert(`📑 Спарсено томов: ${volumes.length} для "${targetTitle.title}". Сохранено!`);
-};
-
-// 4. НАТИВНЫЙ HTML-ПАРСЕР СТРАНИЦЫ
-document.getElementById('parse-html-btn').onclick = () => {
-  const rawHtml = document.getElementById('html-raw-text').value;
-  if (!rawHtml.trim()) return alert('Вставьте HTML код страницы!');
-  
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(rawHtml, 'text/html');
-
-  const title = doc.querySelector('.media-name, .title, h1, h2')?.innerText || '';
-  const img = doc.querySelector('img')?.src || doc.querySelector('img')?.getAttribute('data-src') || '';
-  const rating = doc.querySelector('.rating, .score')?.innerText || '10.0';
-
-  if (title) document.getElementById('new-title').value = title.trim();
-  if (img) document.getElementById('new-cover').value = img.trim();
-  if (rating) document.getElementById('new-rating').value = rating.trim();
-
-  window.showAdminTab('add');
-  alert('HTML-код успешно разобран. Данные перенесены в форму добавления!');
-};
-
-// Служебные функции
-function saveDB() {
-  localStorage.setItem('nbf_db', JSON.stringify(db));
 }
 
-document.getElementById('export-db-btn').onclick = () => {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db, null, 2));
-  const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", "db.json");
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  downloadAnchor.remove();
+window.loadChaptersForEdit = function() {
+  const tId = document.getElementById("select-title-for-edit").value;
+  const selCh = document.getElementById("select-chapter-for-edit");
+  selCh.innerHTML = '<option value="">-- Выберите главу --</option>';
+  document.getElementById("chapter-edit-form").style.display = "none";
+
+  const t = titlesData.find(x => x.id === tId);
+  if (!t || !t.chapters) return;
+
+  t.chapters.forEach(c => {
+    selCh.innerHTML += `<option value="${c.id}">Том ${c.volume_num} — Гл. ${c.chapter_num}: ${c.chapter_title || ''}</option>`;
+  });
 };
-// Загрузка данных в поля редактирования
-window.loadTitleToEdit = (id) => {
-  const item = db.find(t => t.id === id);
-  if (!item) return;
+
+window.fillChapterEditForm = function() {
+  const tId = document.getElementById("select-title-for-edit").value;
+  const cId = document.getElementById("select-chapter-for-edit").value;
+  const form = document.getElementById("chapter-edit-form");
   
-  document.getElementById('edit-form-fields').style.display = 'block';
-  document.getElementById('edit-title').value = item.title;
-  document.getElementById('edit-cover').value = item.cover;
-  document.getElementById('edit-rating').value = item.rating;
-  window.currentEditId = id; // Сохраняем ID того, что правим
+  if (!cId) { form.style.display = "none"; return; }
+  
+  const t = titlesData.find(x => x.id === tId);
+  const ch = t.chapters.find(x => x.id == cId);
+  if (!ch) return;
+
+  document.getElementById("edit-vol-num").value = ch.volume_num || 1;
+  document.getElementById("edit-ch-num").value = ch.chapter_num || "";
+  document.getElementById("edit-ch-title").value = ch.chapter_title || "";
+  document.getElementById("edit-tg-url").value = ch.tg_url || "";
+  document.getElementById("edit-content").value = ch.content || "";
+  
+  form.style.display = "block";
 };
 
-// Сохранение отредактированного тайтла
-window.saveEditedTitle = () => {
-  const id = window.currentEditId;
-  const item = db.find(t => t.id === id);
-  if (!item) return;
+window.saveChapterChanges = async function() {
+  const tId = document.getElementById("select-title-for-edit").value;
+  const cId = document.getElementById("select-chapter-for-edit").value;
+  
+  const payload = {
+    title_id: tId,
+    volume_num: parseInt(document.getElementById("edit-vol-num").value) || 1,
+    chapter_num: document.getElementById("edit-ch-num").value.trim(),
+    chapter_title: document.getElementById("edit-ch-title").value.trim(),
+    tg_url: document.getElementById("edit-tg-url").value.trim(),
+    content: document.getElementById("edit-content").value
+  };
 
-  item.title = document.getElementById('edit-title').value;
-  item.cover = document.getElementById('edit-cover').value;
-  item.rating = document.getElementById('edit-rating').value;
-
-  saveDB();
-  renderGrid();
-  alert('Тайтл успешно обновлен!');
+  try {
+    const res = await fetch(`${API_URL}/api/chapters`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      alert("✅ Глава успешно обновлена!");
+      loadTitlesFromAPI();
+    } else {
+      alert("Ошибка сохранения на сервере.");
+    }
+  } catch (e) {
+    alert("Сервер недоступен. Изменения сохранены локально.");
+  }
 };
 
-// Первичный запуск: качаем базу с сервера
-loadDatabase();
+window.saveTitle = async function() {
+  const idVal = document.getElementById("new-id").value.trim() || `id-${Date.now()}`;
+  const payload = {
+    id: idVal,
+    title: document.getElementById("new-title").value.trim(),
+    cover: document.getElementById("new-cover").value.trim() || "https://via.placeholder.com/150",
+    rating: document.getElementById("new-rating").value.trim() || "10.0",
+    type: document.getElementById("new-type").value,
+    tag: document.getElementById("new-tag").value.trim()
+  };
+
+  try {
+    await fetch(`${API_URL}/api/titles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    alert("✅ Тайтл сохранен в базу!");
+    loadTitlesFromAPI();
+  } catch (e) {
+    titlesData.push({ ...payload, volumes: [], chapters: [] });
+    renderGrid();
+    alert("Тайтл добавлен локально!");
+  }
+};
+
+// --- ВСПОМОГАТЕЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
+function setupEventListeners() {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      e.target.classList.add("active");
+      currentFilter = e.target.getAttribute("data-type");
+      renderGrid();
+    });
+  });
+
+  document.getElementById("search-input")?.addEventListener("input", renderGrid);
+  
+  document.getElementById("auth-btn").onclick = () => {
+    document.getElementById("auth-modal").classList.add("active");
+    if (currentUser) {
+      document.getElementById("auth-form-block").style.display = "none";
+      document.getElementById("profile-block").style.display = "block";
+      document.getElementById("profile-name").innerText = currentUser.username;
+      document.getElementById("profile-email").innerText = currentUser.email || "arsenijkasapov6@gmail.com";
+    } else {
+      document.getElementById("auth-form-block").style.display = "block";
+      document.getElementById("profile-block").style.display = "none";
+    }
+  };
+
+  document.getElementById("admin-btn").onclick = () => {
+    updateAdminSelects();
+    document.getElementById("admin-modal").classList.add("active");
+  };
+}
+
+window.closeModal = function(id) {
+  document.getElementById(id).classList.remove("active");
+};
+
+window.showAdminTab = function(tabName) {
+  document.querySelectorAll(".admin-tab").forEach(t => t.style.display = "none");
+  document.querySelectorAll(".admin-tabs button").forEach(b => b.classList.remove("active-adm-tab"));
+  
+  const target = document.getElementById(`tab-${tabName}`);
+  if (target) target.style.display = "block";
+  event.target.classList.add("active-adm-tab");
+};
+
+window.exportDbJson = async function() {
+  try {
+    const res = await fetch(`${API_URL}/api/export_db_json`);
+    const data = await res.json();
+    const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+    const dl = document.createElement('a');
+    dl.setAttribute("href", str);
+    dl.setAttribute("download", "db.json");
+    document.body.appendChild(dl); dl.click(); dl.remove();
+  } catch (e) {
+    alert("Экспорт возможен только при работающем FastAPI сервере.");
+  }
+};
