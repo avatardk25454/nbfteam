@@ -2,139 +2,199 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>NBF Team — Перевод новелл и манги</title>
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body>
-  <!-- Шапка со ссылками из твоего конфига -->
+  <!-- Шапка -->
   <header class="header">
-    <div class="logo">
+    <div class="logo" onclick="location.reload()" style="cursor:pointer;">
       <span class="logo-accent">NBF</span> Team
     </div>
-    <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-      <a href="https://pay.cloudtips.ru/p/79fc85b6" target="_blank" class="btn-accent" style="background: #27ae60;">💖 Поддержать</a>
-      <a href="https://t.me/+vfl3Yg8HqBcxNzZi" target="_blank" class="btn-secondary">💬 Наш чат</a>
+    <div class="header-actions">
+      <a href="https://pay.cloudtips.ru/p/79fc85b6" target="_blank" class="btn-accent">💖 Поддержать</a>
+      <a href="https://t.me/+vfl3Yg8HqBcxNzZi" target="_blank" class="btn-secondary">💬 Чат</a>
       <a href="https://t.me/NBF_TEAM" target="_blank" class="btn-primary">📢 Канал</a>
-      <button id="admin-btn" class="btn-secondary" style="border: 1px solid #444;">⚙️ Админка</button>
+      <button id="auth-btn" class="btn-secondary">👤 Вход / Регистрация</button>
+      <button id="admin-btn" class="btn-secondary" style="border: 1px solid #444; display: none;">⚙️ Админка</button>
     </div>
   </header>
 
-  <!-- Главный экран (Каталог) -->
+  <!-- Лента новых глав (Синхронизируется с ботом и парсером) -->
+  <section class="new-releases-bar">
+    <div class="releases-title">🔥 Свежие релизы NBF Team</div>
+    <div class="releases-scroll" id="new-releases-list">
+      <div class="release-item loading">Загрузка новых глав...</div>
+    </div>
+  </section>
+
+  <!-- Главный экран (Каталог с нативным разделением) -->
   <main id="catalog-view" class="view active">
-    <!-- Фильтры и поиск -->
     <section class="controls">
       <div class="search-box">
-        <input type="text" id="search-input" placeholder="🔍 Поиск по названию..." />
+        <input type="text" id="search-input" placeholder="🔍 Поиск по каталогу NBF..." />
       </div>
       <div class="tabs">
-        <button class="tab-btn active" data-type="all">Все</button>
-        <button class="tab-btn" data-type="manga">Манга</button>
-        <button class="tab-btn" data-type="novel">Новеллы</button>
-        <button class="tab-btn" data-type="anime">Аниме</button>
+        <button class="tab-btn active" data-type="all">Все проекты</button>
+        <button class="tab-btn" data-type="manga">📙 Манга</button>
+        <button class="tab-btn" data-type="novel">📘 Новеллы</button>
       </div>
     </section>
 
-    <!-- Сетка тайтлов -->
+    <!-- Сетка каталога -->
     <section class="grid" id="titles-grid"></section>
   </main>
 
-  <!-- Модальное окно просмотра тайтла и глав -->
+  <!-- Модальное окно просмотра тайтла и выбора томов/глав -->
   <div id="title-modal" class="modal">
-    <div class="modal-content">
-      <button class="close-btn" id="close-modal">&times;</button>
+    <div class="modal-content title-modal-width">
+      <button class="close-btn" onclick="closeModal('title-modal')">&times;</button>
       <div id="modal-body"></div>
+      
+      <!-- Блок комментариев к тайтлу -->
+      <div class="comments-section">
+        <h3>💬 Обсуждение тайтла</h3>
+        <div class="comment-form">
+          <textarea id="title-comment-input" rows="2" placeholder="Оставьте комментарий (даже анонимно)..."></textarea>
+          <button class="btn-primary" onclick="submitComment('title')">Отправить</button>
+        </div>
+        <div id="title-comments-list" class="comments-list"></div>
+      </div>
     </div>
   </div>
 
-  <!-- Модальное окно Админки -->
+  <!-- Модальное окно ЧТЕНИЯ ГЛАВЫ (Текст + Иллюстрации) -->
+  <div id="read-modal" class="modal">
+    <div class="modal-content reader-width">
+      <div class="reader-header">
+        <button class="btn-secondary" onclick="closeModal('read-modal')">🡠 Назад к тайтлу</button>
+        <h3 id="reader-title-text" style="color: var(--accent); font-size: 1.1rem;"></h3>
+        <button class="close-btn" style="position:static;" onclick="closeModal('read-modal')">&times;</button>
+      </div>
+      
+      <div id="reader-content" class="reader-body"></div>
+
+      <!-- Комментарии к конкретной главе -->
+      <div class="comments-section" style="margin-top: 40px; border-top: 1px solid #333; padding-top: 20px;">
+        <h3>💬 Комментарии к главе</h3>
+        <div class="comment-form">
+          <textarea id="chapter-comment-input" rows="2" placeholder="Напишите мысли по главе..."></textarea>
+          <button class="btn-primary" onclick="submitComment('chapter')">Отправить</button>
+        </div>
+        <div id="chapter-comments-list" class="comments-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно Входа / Профиля пользователя -->
+  <div id="auth-modal" class="modal">
+    <div class="modal-content auth-width">
+      <button class="close-btn" onclick="closeModal('auth-modal')">&times;</button>
+      
+      <!-- Форма Входа / Регистрации -->
+      <div id="auth-form-block">
+        <h2 style="margin-bottom: 15px; color: var(--accent);">🔐 Вход в аккаунт</h2>
+        <input type="text" id="auth-username" placeholder="Логин (например, Renayem)" />
+        <input type="password" id="auth-password" placeholder="Пароль" />
+        <button class="btn-primary" style="width: 100%; margin-top: 15px;" onclick="handleLogin()">Войти / Зарегистрироваться</button>
+        <p style="font-size: 0.8rem; color: #888; margin-top: 10px; text-align: center;">При входе под Renayem выдаются права администратора.</p>
+      </div>
+
+      <!-- Личный кабинет (После входа) -->
+      <div id="profile-block" style="display: none;">
+        <h2 style="color: var(--accent); margin-bottom: 10px;">👤 Профиль пользователя</h2>
+        <p><b>Никнейм:</b> <span id="profile-name" style="color: #fff; font-weight: bold;"></span></p>
+        <p><b>Email:</b> <span id="profile-email" style="color: #aaa;">Не указан</span></p>
+        
+        <hr style="margin: 15px 0; border-color: #333;" />
+        <h4 style="margin-bottom: 10px;">🔗 Привязки аккаунтов:</h4>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+          <button class="btn-secondary" style="background: #2787F5; flex: 1;">Привязать ВКонтакте</button>
+          <button class="btn-secondary" style="background: #229ED9; flex: 1;">Привязать Telegram</button>
+        </div>
+
+        <h4 style="margin-bottom: 10px;">🛡 Безопасность:</h4>
+        <input type="email" id="change-email-input" placeholder="Новая почта (например: arsenijkasapov6@gmail.com)" />
+        <button class="btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="alert('Код подтверждения отправлен в специального Telegram бота!')">Сменить почту с подтверждением в ТГ</button>
+        
+        <button class="btn-secondary" style="width: 100%; border: 1px dashed var(--accent); margin-bottom: 15px;" onclick="alert('Для смены пароля перейдите в нашего Telegram-бота!')">🔑 Сменить пароль через ТГ бота</button>
+
+        <button class="btn-primary" style="background: var(--tag-red); width: 100%;" onclick="handleLogout()">Выйти из аккаунта</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно Админ-панели (Добавление / Редактирование) -->
   <div id="admin-modal" class="modal">
     <div class="modal-content admin-content">
-      <button class="close-btn" id="close-admin">&times;</button>
-      <h2>🛠 Админ-панель NBF Team</h2>
+      <button class="close-btn" onclick="closeModal('admin-modal')">&times;</button>
+      <h2>🛠 Админ-панель NBF Team (Renayem)</h2>
       
-      <!-- Авторизация -->
-      <div id="auth-section">
-        <input type="password" id="admin-pass" placeholder="Введите пароль..." />
-        <button id="login-btn" class="btn-primary" style="width: 100%; margin-top: 10px;">Войти</button>
+      <div class="admin-tabs">
+        <button class="btn-secondary active-adm-tab" onclick="showAdminTab('add')">➕ Тайтлы и Парсеры</button>
+        <button class="btn-secondary" onclick="showAdminTab('edit-chapters')">✏️ Редактор глав и текста</button>
+        <button class="btn-secondary" onclick="showAdminTab('parse-tg')">📑 ТГ Маркдаун</button>
       </div>
 
-      <!-- Рабочая зона админки -->
-      <div id="admin-workspace" style="display: none;">
-        <div class="admin-tabs">
-          <button class="btn-secondary" onclick="showAdminTab('add')">➕ Добавить тайтл</button>
-          <button class="btn-secondary" onclick="showAdminTab('parse')">📑 Парсер глав (ТГ)</button>
-          <button class="btn-secondary" onclick="showAdminTab('html-parse')">🌐 Парсер HTML</button>
-        </div>
-
-        <!-- Вкладка добавления тайтла + Парсер API -->
-        <div id="tab-add" class="admin-tab active">
-          <div style="background: #2a2a2a; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed var(--accent);">
-            <p style="font-size: 0.85rem; color: #ccc; margin-bottom: 8px;">⚡ Авто-загрузка по ссылке (выбери платформу):</p>
-            
-            <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.9rem;">
-              <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                <input type="radio" name="parser-platform" value="lib" checked /> 🟢 MangaLib / RanobeLib
-              </label>
-              <label style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                <input type="radio" name="parser-platform" value="hex" /> 🟣 HexNovels
-              </label>
-            </div>
-
-            <div style="display: flex; gap: 8px;">
-              <input type="text" id="lib-url-input" placeholder="Вставь ссылку на тайтл..." style="margin: 0;" />
-              <button id="fetch-lib-btn" class="btn-primary" style="white-space: nowrap;">Загрузить</button>
-            </div>
+      <!-- Вкладка Добавление тайтлов / API Парсеры -->
+      <div id="tab-add" class="admin-tab active">
+        <div style="background: #222; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed var(--accent);">
+          <p style="font-size: 0.85rem; color: #ccc; margin-bottom: 8px;">⚡ Авто-загрузка по ссылке с API:</p>
+          <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.9rem;">
+            <label><input type="radio" name="parser-platform" value="lib" checked /> 🟢 MangaLib/RanobeLib</label>
+            <label><input type="radio" name="parser-platform" value="hex" /> 🟣 HexNovels</label>
           </div>
-
-          <input type="text" id="new-title" placeholder="Название (например: Пять невест)" />
-          <input type="text" id="new-cover" placeholder="URL обложки" />
-          <input type="number" id="new-rating" placeholder="Рейтинг (например: 10.0)" step="0.1" />
-          <select id="new-type">
-            <option value="novel">Новелла</option>
-            <option value="manga">Манга</option>
-            <option value="anime">Аниме</option>
-          </select>
-          <input type="text" id="new-tag" placeholder="Тег (например: Любимые / Перевожу)" />
-          <button id="save-title-btn" class="btn-primary" style="width:100%; margin-top:10px;">Сохранить в базу</button>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="lib-url-input" placeholder="Ссылка на тайтл..." style="margin: 0;" />
+            <button id="fetch-lib-btn" class="btn-primary">Загрузить</button>
+          </div>
         </div>
 
-        <!-- Вкладка парсера списка глав из ТГ -->
-        <div id="tab-parse" class="admin-tab" style="display:none;">
-          <p>Вставь текст со ссылками из Telegram, система сама разобьет его по томам и главам:</p>
-          <textarea id="tg-raw-text" rows="8" placeholder="• Том 1&#10;– Глава 0 (https://t.me/NBF_TEAM/3089)&#10;– Глава 1 (https://t.me/NBF_TEAM/2979)"></textarea>
-          <select id="select-title-for-chapters"></select>
-          <button id="parse-chapters-btn" class="btn-primary" style="width:100%; margin-top:10px;">Спарсить и привязать к тайтлу</button>
-        </div>
-
-        <!-- Вкладка парсера HTML со сторонних сайтов -->
-        <div id="tab-html-parse" class="admin-tab" style="display:none;">
-          <p>Вставь скопированный HTML-код карточки или страницы с каталога:</p>
-          <textarea id="html-raw-text" rows="6" placeholder="<div class='media-card'>...</div>"></textarea>
-          <button id="parse-html-btn" class="btn-primary" style="width:100%; margin-top:10px;">Извлечь данные</button>
-        </div>
-        <!-- Рабочая зона админки -->
-        <div id="admin-workspace" style="display: none;">
-          <div class="admin-tabs">
-            <button class="btn-secondary" onclick="showAdminTab('add')">➕ Добавить</button>
-            <button class="btn-secondary" onclick="showAdminTab('parse')">📑 Парсер (ТГ)</button>
-            <button class="btn-secondary" onclick="showAdminTab('html-parse')">🌐 Парсер (HTML)</button>
-            <!-- ДОБАВЬ ЭТУ СТРОКУ: -->
-            <button class="btn-secondary" onclick="showAdminTab('edit-select')">✏️ Редактировать</button>
-        </div>
-  
-  <!-- Остальной код вкладок (tab-add, tab-parse, tab-html-parse, tab-edit-select) -->
-  ...
-</div>
-        
-
-        <hr style="margin: 20px 0; border-color: #333;" />
-        <button id="export-db-btn" class="btn-accent" style="width:100%;">💾 Скачать обновленный db.json</button>
+        <input type="text" id="new-id" placeholder="ID (например: arja-san или прекраснаядевуш)" />
+        <input type="text" id="new-title" placeholder="Название тайтла" />
+        <input type="text" id="new-cover" placeholder="URL обложки" />
+        <input type="text" id="new-rating" placeholder="Рейтинг (например: 9.8)" />
+        <select id="new-type">
+          <option value="novel">Новелла</option>
+          <option value="manga">Манга</option>
+        </select>
+        <input type="text" id="new-tag" placeholder="Тег (например: Перевожу / Любимые)" />
+        <button class="btn-primary" style="width:100%; margin-top:10px;" onclick="saveTitle()">Сохранить тайтл в базу</button>
       </div>
+
+      <!-- Вкладка Редактор глав (Замена адреса на текст с иллюстрацией) -->
+      <div id="tab-edit-chapters" class="admin-tab" style="display:none;">
+        <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 10px;">Здесь вы можете изменить адрес с Ранобэлиба на свой собственный текст новеллы с вставкой иллюстраций:</p>
+        
+        <select id="select-title-for-edit" onchange="loadChaptersForEdit()"></select>
+        <select id="select-chapter-for-edit" style="margin-top: 10px;" onchange="fillChapterEditForm()"></select>
+
+        <div id="chapter-edit-form" style="display: none; margin-top: 15px; background: #222; padding: 15px; border-radius: 8px;">
+          <input type="number" id="edit-vol-num" placeholder="Номер тома (например, 1)" />
+          <input type="text" id="edit-ch-num" placeholder="Номер главы (например, 2 или 3.1)" />
+          <input type="text" id="edit-ch-title" placeholder="Название главы" />
+          <input type="text" id="edit-tg-url" placeholder="Ссылка на Telegram (или ранобэлиб)" />
+          <p style="font-size: 0.8rem; color: var(--tag-green); margin: 8px 0 4px;">📝 Содержание (если заполнено — глава откроется прямо на сайте с иллюстрациями):</p>
+          <textarea id="edit-content" rows="6" placeholder="Вставьте текст новеллы. Для картинки используйте тег: <img src='url_картинки' class='reader-img' />"></textarea>
+          
+          <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="saveChapterChanges()">💾 Сохранить изменения главы</button>
+        </div>
+      </div>
+
+      <!-- Вкладка Маркдаун из Telegram -->
+      <div id="tab-parse-tg" class="admin-tab" style="display:none;">
+        <p>Вставьте маркдаун из Telegram канала со ссылками на посты:</p>
+        <textarea id="tg-raw-text" rows="6" placeholder="• Том 1&#10;– Глава 0 (https://t.me/NBF_TEAM/3089)"></textarea>
+        <select id="select-title-for-tg"></select>
+        <button class="btn-primary" style="width:100%; margin-top:10px;" onclick="parseTelegramMarkdown()">Спарсить в базу</button>
+      </div>
+
+      <hr style="margin: 20px 0; border-color: #333;" />
+      <button class="btn-accent" style="width:100%;" onclick="exportDbJson()">💾 Скачать совместимый db.json</button>
     </div>
   </div>
 
-  <!-- Подключение скрипта (убедись, что путь правильный: /src/main.js или /main.js) -->
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
