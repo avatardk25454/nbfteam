@@ -29,5 +29,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "иногдаалявнезап",
+    "title": "Иногда Аля внезапно кокетничает по-русски",
+    "cover": "https://static.inuko.me/book/648bfd8a-6a20-48cc-a0a6-1c165030570b/cover/cfed84c3-0205-4d3f-ba16-0932392e79af.jpeg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 2",
+        "chapters": [
+          {
+            "title": "Глава 0: Начальные иллюстрации",
+            "url": "https://hexnovels.me/content/tokidoki-bosotto-roshia-go-de-dereru-tonari-no-arya-san/30d814c7-8a8d-42fb-8ffe-08e7151e01c7?page=0"
+          }
+        ]
+      }
+    ]
   }
 ]
