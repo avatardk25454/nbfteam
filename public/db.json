@@ -48,5 +48,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "каквыбратьпаруч",
+    "title": "Как выбрать пару, чтобы стать номером 1 в классе, полном красавцев и красавиц (LN)",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/binan-bijo-bakari-no-kyoushitsu-de-no1-ni-naru-pea-no-erabikata/cover/709b7787-e95b-47e6-bc47-3c58c32ce292.jpg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 1",
+        "chapters": [
+          {
+            "title": "Глава 4: Глава 4. Я выбираю тебя.",
+            "url": "https://ranobelib.me/ru/264203--binan-bijo-bakari-no-kyoushitsu-de-no1-ni-naru-pea-no-erabikata/read/v1/c4?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
