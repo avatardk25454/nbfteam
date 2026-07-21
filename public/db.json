@@ -79,5 +79,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "почемубынесдела",
+    "title": "Почему бы не сделать обеих близняшек своими девушками?",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/futago-matomete-kanojo-ni-shinai/cover/c2cf896d-a2e5-466d-b49e-99b7ae0b1159.jpg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 4",
+        "chapters": [
+          {
+            "title": "Глава 4: Глава 4. Объявление войны?..",
+            "url": "https://ranobelib.me/ru/231721--futago-matomete-kanojo-ni-shinai/read/v4/c4?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
