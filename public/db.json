@@ -202,5 +202,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "бесстыдныеигрык",
+    "title": "Бесстыдные игры комитета по морали",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/fuki-iin-no-harenchi-yugi/cover/c7b00be5-d26b-4c40-b7a3-64d82828afcd.jpg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 1",
+        "chapters": [
+          {
+            "title": "Глава 0: Начальные иллюстрации",
+            "url": "https://ranobelib.me/ru/269585--fuki-iin-no-harenchi-yugi/read/v1/c0?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
