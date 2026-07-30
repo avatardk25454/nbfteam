@@ -221,5 +221,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "читосэвнутрибут",
+    "title": "Читосэ внутри бутылки рамунэ (ЛН)",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/chitose-kun-wa-ramune-bin-no-naka-no-vu-e-tsu-ra/cover/45a65c35-bade-4835-92ba-802a6b111477.jpg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 6.5",
+        "chapters": [
+          {
+            "title": "Глава 0: Начальные иллюстрации",
+            "url": "https://ranobelib.me/ru/108735--chitose-kun-wa-ramune-bin-no-naka-no-vu-e-tsu-ra/read/v6.5/c0?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
