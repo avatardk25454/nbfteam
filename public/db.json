@@ -260,5 +260,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "послетогокакясп",
+    "title": "После того, как я спас Ледяную Принцессу из другой школы, мы стали друзьями",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/after-helping-ice-princess-from-another-school-i-decided-to-start-as-a-friend/cover/23b73747-2259-4b73-bee9-f629926a4925.jpg",
+    "rating": "10.0",
+    "type": "manga",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 4",
+        "chapters": [
+          {
+            "title": "Глава 21: Будни с друзьями.",
+            "url": "https://mangalib.me/ru/200828--after-helping-ice-princess-from-another-school-i-decided-to-start-as-a-friend/read/v4/c21?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
