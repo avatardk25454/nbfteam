@@ -3537,5 +3537,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "дажекошкииногда",
+    "title": "Даже кошки иногда извиняются",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/neko-datte-tokidoki-ayamaru/cover/f7fbc2fd-b6b7-46c7-801a-8b59a1d033d4.jpg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 1",
+        "chapters": [
+          {
+            "title": "Глава 0.5: Пролог",
+            "url": "https://ranobelib.me/ru/272447--neko-datte-tokidoki-ayamaru/read/v1/c0.5?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
