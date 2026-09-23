@@ -3761,5 +3761,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "полуночныймотив",
+    "title": "Полуночный мотив сердца",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/mayonaka-heart-tune/cover/8a70f762-29a4-4e27-b9a7-4352e12e9181.jpg",
+    "rating": "10.0",
+    "type": "manga",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 16",
+        "chapters": [
+          {
+            "title": "Глава 128: Кульминационное завершение.",
+            "url": "https://mangalib.me/ru/179992--mayonaka-heart-tune/read/v16/c128?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
