@@ -3812,5 +3812,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "даженесмотрянат",
+    "title": "Даже не смотря на то, что ты лишилась девственности со мной",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/watashi-de-dotei-suteta-kuse-ni/cover/885051ba-25b1-4006-8145-7865ea4e6fa6.jpg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 1",
+        "chapters": [
+          {
+            "title": "Глава 1: Две стороны друзей детства",
+            "url": "https://ranobelib.me/ru/274477--watashi-de-dotei-suteta-kuse-ni/read/v1/c1?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
