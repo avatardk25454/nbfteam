@@ -3911,5 +3911,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "стоиломнеприюти",
+    "title": "Стоило мне приютить чёрного кота, как мой дом облюбовали две красавицы",
+    "cover": "https://cover.cdnlibs.org/uploads/cover/kuro-neko-o-hirottara-orenchi-ga-ni-dai-bishojo-no-tamariba-ni-natta/cover/fb7f12a0-3002-4f49-bae6-b195d544664f.jpg",
+    "rating": "10.0",
+    "type": "novel",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 1",
+        "chapters": [
+          {
+            "title": "Глава 1.5",
+            "url": "https://ranobelib.me/ru/275534--kuro-neko-o-hirottara-orenchi-ga-ni-dai-bishojo-no-tamariba-ni-natta/read/v1/c1.5?bid&ui=10492466"
+          }
+        ]
+      }
+    ]
   }
 ]
