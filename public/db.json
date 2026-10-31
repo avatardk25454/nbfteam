@@ -889,6 +889,15 @@
     "tag": "Перевожу",
     "volumes": [
       {
+        "name": "Том 9.5",
+        "chapters": [
+          {
+            "title": "Глава 0: Начальные иллюстрации",
+            "url": "https://nbfteam.me/read/957"
+          }
+        ]
+      },
+      {
         "name": "Том 6.5",
         "chapters": [
           {
