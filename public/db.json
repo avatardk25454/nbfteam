@@ -4435,5 +4435,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "явсемисиламисде",
+    "title": "Я всеми силами сделаю счастливой роковую красавицу, которая разучилась улыбаться",
+    "cover": "https://api.nbfteam.me/storage/v1/object/public/covers/titles/65b163b1-0097-46ab-b642-37d00a1581b7.webp",
+    "rating": "10.0",
+    "type": "manga",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 1",
+        "chapters": [
+          {
+            "title": "Глава 0: Начальные иллюстрации",
+            "url": "https://nbfteam.me/read/1081"
+          }
+        ]
+      }
+    ]
   }
 ]
