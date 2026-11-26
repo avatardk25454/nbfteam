@@ -4474,5 +4474,24 @@
         ]
       }
     ]
+  },
+  {
+    "id": "янашёлтетрадьпо",
+    "title": "Я нашёл тетрадь, полную навязчивых признаний, и девушки вокруг меня стали вести себя странно",
+    "cover": "https://api.nbfteam.me/storage/v1/object/public/covers/titles/3da9b90c-892c-45b3-b9c7-80de6cdd950b.webp",
+    "rating": "10.0",
+    "type": "manga",
+    "tag": "Перевожу",
+    "volumes": [
+      {
+        "name": "Том 1",
+        "chapters": [
+          {
+            "title": "Глава 0: Начальные иллюстрации",
+            "url": "https://nbfteam.me/read/1088"
+          }
+        ]
+      }
+    ]
   }
 ]
